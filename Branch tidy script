@@ -1,0 +1,37 @@
+# R script to tidy branch annotations from ASTRAL-IV or wASTRAL trees run with -u 2.
+# The -u 2 option scores each branch but produces complex annotations.
+# This script extracts only the local posterior probability (LPP / localPP)
+# and the alternative quartet scores (q1, q2, q3).
+
+library(stringr)
+
+# 1. Read tree as text
+tree_text <- readLines("ASTRAL4.tree")
+
+# 2. Function to keep only localPP, q1, q2, q3 and round to 2 decimals
+tidy_annotations <- function(line) {
+  # Extract only localPP, q1, q2, q3 (with their values)
+  line <- str_replace_all(line, "\\[.*?\\]", function(m) {
+    # Within brackets, keep only the desired fields
+    keep <- str_extract_all(m, "(localPP|q[123])=[0-9\\.eE-]+")[[1]]
+    if (length(keep) == 0) return("")  # remove if nothing to keep
+    
+    # Round values if wanted
+    keep_rounded <- sapply(keep, function(kv) {
+      parts <- str_split(kv, "=")[[1]]
+      key <- parts[1]
+      value <- as.numeric(parts[2])
+      paste0(key, "=", sprintf("%.2f", value))
+    })
+    
+    paste0("[", paste(keep_rounded, collapse=","), "]")
+  })
+  
+  return(line)
+}
+
+# 3. Apply function to all lines
+tree_text_short <- sapply(tree_text, tidy_annotations)
+
+# 4. Write to new file
+writeLines(tree_text_short, "astral4_pp1_qs.tre")
